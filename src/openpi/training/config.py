@@ -405,7 +405,7 @@ class TrainConfig:
     batch_size: int = 32
     # Number of workers to use for the data loader. Increasing this number will speed up data loading but
     # will increase memory and CPU usage.
-    num_workers: int = 10 # Default 2
+    num_workers: int = 2 # Default 2
     # Number of train steps (batches) to run.
     num_train_steps: int = 30_000
 
@@ -705,6 +705,7 @@ _CONFIGS = [
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
+                action_sequence_keys = ("action",)
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
