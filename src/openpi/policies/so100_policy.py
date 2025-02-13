@@ -7,10 +7,10 @@ from openpi import transforms
 from openpi.models import model as _model
 
 
-def make_libero_example() -> dict:
+def make_so100_example() -> dict:
     """Creates a random input example for the Libero policy."""
     return {
-        "observation/state": np.random.rand(8),
+        "observation/state": np.random.rand(6),
         "observation/image": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
         "observation/wrist_image": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
         "prompt": "do something",
@@ -39,6 +39,7 @@ class S0100Inputs(transforms.DataTransformFn):
 
         # Get the state. We are padding from 8 to the model action dim.
         # For pi0-FAST, we don't pad the state (action_dim = 7, which is < 8, so pad is skipped).
+        # For the SO100 the state is of size 6 so we pad
         state = transforms.pad_to_dim(data["observation/state"], self.action_dim)
 
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
@@ -74,7 +75,7 @@ class S0100Inputs(transforms.DataTransformFn):
 
 
 @dataclasses.dataclass(frozen=True)
-class LiberoOutputs(transforms.DataTransformFn):
+class S0100Outputs(transforms.DataTransformFn):
     def __call__(self, data: dict) -> dict:
-        # Only return the first 7 dims.
-        return {"actions": np.asarray(data["actions"][:, :7])}
+        # Only return the first 6 dims.
+        return {"actions": np.asarray(data["actions"][:, :6])}
