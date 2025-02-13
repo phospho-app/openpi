@@ -650,6 +650,22 @@ _CONFIGS = [
         num_train_steps=10,
         wandb_enabled=False,
     ),
+    #
+    # Fine-tuning Libero configs.
+    #
+    TrainConfig(
+        name="pi0_so100",
+        model=pi0.Pi0Config(),
+        data=LeRobotLiberoDataConfig(
+            repo_id="physical-intelligence/libero",
+            base_config=DataConfig(
+                local_files_only=False,  # Set to True for local-only datasets.
+                prompt_from_task=True,
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
+        num_train_steps=30_000,
+    ),
 ]
 
 if len({config.name for config in _CONFIGS}) != len(_CONFIGS):
