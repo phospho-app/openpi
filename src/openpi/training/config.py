@@ -20,6 +20,7 @@ import openpi.models.tokenizer as _tokenizer
 import openpi.policies.aloha_policy as aloha_policy
 import openpi.policies.droid_policy as droid_policy
 import openpi.policies.libero_policy as libero_policy
+import openpi.policies.so100_policy as so100_policy
 import openpi.shared.download as _download
 import openpi.shared.normalize as _normalize
 import openpi.training.optimizer as _optimizer
@@ -314,8 +315,8 @@ class LeRobotSO100DataConfig(DataConfigFactory):
         # Prepare data for policy training
         # Convert images to uint8 numpy arrays, add masks
         data_transforms = _transforms.Group(
-            inputs=[libero_policy.LiberoInputs(action_dim=model_config.action_dim, model_type=model_config.model_type)],
-            outputs=[libero_policy.LiberoOutputs()],
+            inputs=[so100_policy.S0100Inputs(action_dim=model_config.action_dim, model_type=model_config.model_type)],
+            outputs=[so100_policy.S0100Outputs()],
         )
         # Use delta actions (not for gripper)
         delta_action_mask = _transforms.make_bool_mask(6, -1)
@@ -373,7 +374,7 @@ class TrainConfig:
     batch_size: int = 32
     # Number of workers to use for the data loader. Increasing this number will speed up data loading but
     # will increase memory and CPU usage.
-    num_workers: int = 2
+    num_workers: int = 10 # Default 2
     # Number of train steps (batches) to run.
     num_train_steps: int = 30_000
 
