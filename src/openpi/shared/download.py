@@ -236,7 +236,8 @@ def _download_boto3(
 def _get_s3_transfer_manager(
     session: boto3.Session, workers: int, botocore_config: botocore.config.Config | None = None
 ) -> s3_transfer.TransferManager:
-    config = botocore.config.Config(max_pool_connections=workers)
+    # Add a few extra connections to prevent exceeding the pool size.
+    config = botocore.config.Config(max_pool_connections=workers + 2)
     if botocore_config is not None:
         config = config.merge(botocore_config)
     s3client = session.client("s3", config=config)
