@@ -701,7 +701,7 @@ _CONFIGS = [
         name="pi0_so100",
         model=pi0.Pi0Config(),
         data=LeRobotSO100DataConfig(
-            repo_id="LegrandFrederic/Orange-brick-in-bamboo-pot",
+            repo_id="LegrandFrederic/Orange-brick-in-black-box",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
@@ -710,6 +710,38 @@ _CONFIGS = [
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
         num_train_steps=30_000,
+    ),
+        TrainConfig(
+        name="pi0_fast_so100",
+        model=pi0_fast.Pi0FASTConfig(action_dim=6, action_horizon=10, max_token_len=180),
+        data=LeRobotSO100DataConfig(
+            repo_id="LegrandFrederic/Orange-brick-in-black-box",
+            base_config=DataConfig(
+                local_files_only=False,  # Set to True for local-only datasets.
+                prompt_from_task=True,
+                action_sequence_keys = ("action",)
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
+    ),
+        TrainConfig(
+        name="pi0_fast_so100_low_mem_finetune",
+        model=pi0_fast.Pi0FASTConfig(paligemma_variant="gemma_2b_lora"),
+        data=LeRobotSO100DataConfig(
+            repo_id="LegrandFrederic/Orange-brick-in-black-box",
+            base_config=DataConfig(
+                local_files_only=False,  # Set to True for local-only datasets.
+                prompt_from_task=True,
+                action_sequence_keys = ("action",)
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
+        freeze_filter=pi0_fast.Pi0FASTConfig(
+            action_dim=6, action_horizon=10, max_token_len=180, paligemma_variant="gemma_2b_lora"
+        ).get_freeze_filter(),
+        ema_decay=None,
     ),
 ]
 
