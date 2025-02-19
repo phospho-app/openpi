@@ -322,7 +322,8 @@ class LeRobotLiberoDataConfig(DataConfigFactory):
             data_transforms=data_transforms,
             model_transforms=model_transforms,
         )
-    
+
+
 @dataclasses.dataclass(frozen=True)
 class LeRobotSO100DataConfig(DataConfigFactory):
     @override
@@ -405,7 +406,7 @@ class TrainConfig:
     batch_size: int = 32
     # Number of workers to use for the data loader. Increasing this number will speed up data loading but
     # will increase memory and CPU usage.
-    num_workers: int = 8 # Default 2
+    num_workers: int = 8  # Default 2
     # Number of train steps (batches) to run.
     num_train_steps: int = 30_000
 
@@ -701,39 +702,39 @@ _CONFIGS = [
         name="pi0_so100",
         model=pi0.Pi0Config(),
         data=LeRobotSO100DataConfig(
-            repo_id="LegrandFrederic/Orange-brick-in-black-box",
+            repo_id="PLB/Orange-brick-in-black-box",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
-                action_sequence_keys = ("action",)
+                action_sequence_keys=("action",),
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
         num_train_steps=30_000,
     ),
-        TrainConfig(
+    TrainConfig(
         name="pi0_fast_so100",
         model=pi0_fast.Pi0FASTConfig(action_dim=6, action_horizon=10, max_token_len=180),
         data=LeRobotSO100DataConfig(
-            repo_id="LegrandFrederic/Orange-brick-in-black-box",
+            repo_id="PLB/Orange-brick-in-black-box",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
-                action_sequence_keys = ("action",)
+                action_sequence_keys=("action",),
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
         num_train_steps=30_000,
     ),
-        TrainConfig(
+    TrainConfig(
         name="pi0_fast_so100_low_mem_finetune",
         model=pi0_fast.Pi0FASTConfig(paligemma_variant="gemma_2b_lora"),
         data=LeRobotSO100DataConfig(
-            repo_id="LegrandFrederic/Orange-brick-in-black-box",
+            repo_id="PLB/Orange-brick-in-black-box",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
-                action_sequence_keys = ("action",)
+                action_sequence_keys=("action",),
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
