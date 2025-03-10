@@ -236,7 +236,8 @@ def _download_boto3(
 def _get_s3_transfer_manager(
     session: boto3.Session, workers: int, botocore_config: botocore.config.Config | None = None
 ) -> s3_transfer.TransferManager:
-    config = botocore.config.Config(max_pool_connections=workers)
+    # Add a few extra connections to prevent exceeding the pool size.
+    config = botocore.config.Config(max_pool_connections=workers + 2)
     if botocore_config is not None:
         config = config.merge(botocore_config)
     s3client = session.client("s3", config=config)
@@ -309,6 +310,7 @@ def _get_mtime(year: int, month: int, day: int) -> float:
 # Partial matching will be used from top to bottom and the first match will be chosen.
 # Cached entries will be retained only if they are newer than the expiration timestamp.
 _INVALIDATE_CACHE_DIRS: dict[re.Pattern, float] = {
+    re.compile("openpi-assets/checkpoints/pi0_aloha_pen_uncap"): _get_mtime(2025, 2, 17),
     re.compile("openpi-assets/checkpoints/pi0_libero"): _get_mtime(2025, 2, 6),
     re.compile("openpi-assets/checkpoints/"): _get_mtime(2025, 2, 3),
 }

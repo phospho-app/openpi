@@ -155,7 +155,7 @@ def load_raw_images_per_camera(ep: h5py.File, cameras: list[str]) -> dict[str, n
             # load one compressed image after the other in RAM and uncompress
             imgs_array = []
             for data in ep[f"/observations/images/{camera}"]:
-                imgs_array.append(cv2.imdecode(data, 1))
+                imgs_array.append(cv2.cvtColor(cv2.imdecode(data, 1), cv2.COLOR_BGR2RGB))
             imgs_array = np.array(imgs_array)
 
         imgs_per_cam[camera] = imgs_array
