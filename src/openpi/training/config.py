@@ -334,8 +334,9 @@ class LeRobotSO100DataConfig(DataConfigFactory):
                 _transforms.RepackTransform(
                     {
                         # We only take the left cam of the stereo cam
-                        "observation/image": "observation.images.main.left",
-                        "observation/wrist_image": "observation.images.secondary_0",
+                        "observation/images.main.left": "observation.images.main.left",
+                        "observation/images.secondary_0": "observation.images.secondary_0",
+                        "observation/images.secondary_1": "observation.images.secondary_1",
                         "observation/state": "observation.state",
                         "actions": "action",
                         "prompt": "prompt",
@@ -702,7 +703,7 @@ _CONFIGS = [
         name="pi0_so100",
         model=pi0.Pi0Config(),
         data=LeRobotSO100DataConfig(
-            repo_id="PLB/Orange-brick-in-black-box",
+            repo_id="LegrandFrederic/dual-setup",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
@@ -714,9 +715,9 @@ _CONFIGS = [
     ),
     TrainConfig(
         name="pi0_fast_so100",
-        model=pi0_fast.Pi0FASTConfig(action_dim=6, action_horizon=10, max_token_len=180),
+        model=pi0_fast.Pi0FASTConfig(action_dim=12, action_horizon=10),
         data=LeRobotSO100DataConfig(
-            repo_id="PLB/Orange-brick-in-black-box",
+            repo_id="LegrandFrederic/dual-setup",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
@@ -724,7 +725,7 @@ _CONFIGS = [
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
-        num_train_steps=30_000,
+        num_train_steps=20_000,
     ),
     TrainConfig(
         name="pi0_fast_so100_low_mem_finetune",

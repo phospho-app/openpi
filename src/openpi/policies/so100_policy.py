@@ -10,9 +10,10 @@ from openpi.models import model as _model
 def make_so100_example() -> dict:
     """Creates a random input example for the Libero policy."""
     return {
-        "observation/state": np.random.rand(6),
-        "observation/image": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
-        "observation/wrist_image": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
+        "observation/state": np.random.rand(12),
+        "observation/images.main.left": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
+        "observation/images.secondary_0": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
+        "observation/images.secondary_1": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
         "prompt": "do something",
     }
 
@@ -44,27 +45,29 @@ class S0100Inputs(transforms.DataTransformFn):
 
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
         # stores as float32 (C,H,W), gets skipped for policy inference
-        base_image = _parse_image(data["observation/image"])
-        wrist_image = _parse_image(data["observation/wrist_image"])
+        base_image = _parse_image(data["observation/images.main.left"])
+        wrist_image_right = _parse_image(data["observation/images.secondary_0"])
+        wrist_image_left = _parse_image(data["observation/images.secondary_1"])
+
+        images = {
+            "base_0_rgb": base_image,
+            "left_wrist_0_rgb": wrist_image_right,
+            "right_wrist_0_rgb": wrist_image_left,
+        }
+        image_masks = {
+            "base_0_rgb": np.True_,
+            "left_wrist_0_rgb": np.True_,
+            "right_wrist_0_rgb": np.True_,
+        }
 
         inputs = {
             "state": state,
-            "image": {
-                "base_0_rgb": base_image,
-                "left_wrist_0_rgb": wrist_image,
-                "right_wrist_0_rgb": np.zeros_like(base_image),
-            },
-            "image_mask": {
-                "base_0_rgb": np.True_,
-                "left_wrist_0_rgb": np.True_,
-                "right_wrist_0_rgb": np.False_ if mask_padding else np.True_,
-            },
+            "image": images,
+            "image_mask": image_masks,
         }
 
         # Actions are only available during training.
         if "actions" in data:
-            # We are padding from 7 to the model action dim.
-            # For pi0-FAST, this is a no-op (since action_dim = 7).
             actions = transforms.pad_to_dim(data["actions"], self.action_dim)
             inputs["actions"] = actions
 
@@ -77,5 +80,6 @@ class S0100Inputs(transforms.DataTransformFn):
 @dataclasses.dataclass(frozen=True)
 class S0100Outputs(transforms.DataTransformFn):
     def __call__(self, data: dict) -> dict:
-        # Only return the first 6 dims.
-        return {"actions": np.asarray(data["actions"][:, :6])}
+        # Make sure to only return the appropriate number of actions here
+        # 6 for 1 robot, 12 for 2
+        return {"actions": np.asarray(data["actions"][:, :12])}
