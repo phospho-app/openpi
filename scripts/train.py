@@ -312,6 +312,7 @@ def train_custom(
     image_keys: str = typer.Option("", help="Comma-separated list of image keys in the dataset"),
     action_key: str = typer.Option("action", help="Action key in the dataset"),
     state_key: str = typer.Option("observation/state", help="State key in the dataset"),
+    wandb_enabled: bool = typer.Option(True, help="Whether to enable Weights & Biases logging"),
 ):
     """Train Pi0.5 with LoRA using custom arguments."""
 
@@ -324,6 +325,7 @@ def train_custom(
         image_keys=image_keys,
         action_key=action_key,
         state_key=state_key,
+        wandb_enabled=wandb_enabled,
     )
 
     main(config)

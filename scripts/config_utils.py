@@ -97,6 +97,7 @@ def create_dynamic_config(
     batch_size: int = 64,
     num_train_steps: int = 30000,
     checkpoint_base_dir: str = "./checkpoints",
+    wandb_enabled: bool = True,
 ) -> _config.TrainConfig:
     """Create a dynamic training config for Pi0.5 LoRA fine-tuning."""
 
@@ -131,6 +132,7 @@ def create_dynamic_config(
         checkpoint_base_dir=checkpoint_base_dir,
         freeze_filter=model_config.get_freeze_filter(),
         ema_decay=None,
+        wandb_enabled=wandb_enabled,
     )
 
 
@@ -143,6 +145,7 @@ def prepare_custom_config_from_args(
     image_keys: str,
     action_key: str,
     state_key: str,
+    wandb_enabled: bool,
     checkpoint_base_dir: str | None = None,
 ) -> _config.TrainConfig:
     """Prepare a custom config from command line arguments with dataset inspection."""
@@ -172,4 +175,5 @@ def prepare_custom_config_from_args(
         batch_size=batch_size,
         num_train_steps=num_train_steps,
         checkpoint_base_dir=final_checkpoint_base_dir,
+        wandb_enabled=wandb_enabled,
     )
