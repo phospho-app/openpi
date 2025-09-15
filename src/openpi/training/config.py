@@ -997,7 +997,7 @@ _CONFIGS = [
     #
     TrainConfig(
         name="pi0_so100",
-        model=pi0.Pi0Config(),
+        model=pi0_config.Pi0Config(),
         data=LeRobotSO100DataConfig(
             repo_id="LegrandFrederic/dual-setup",
             base_config=DataConfig(
