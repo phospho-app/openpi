@@ -2,11 +2,6 @@
 USAGE:
 uv run scripts/train.py train-custom \
     --repo-id "your-username/your-dataset" \
-    --exp-name "my-experiment" \
-    --prompt "pick up the object" \
-    --image-keys "observation/images.main.left,observation/images.secondary_0" \
-    --action-key "action" \
-    --state-key "observation/state" \
     --action-dim 12 \
     --action-horizon 10 \
     --batch-size 64 \
@@ -23,6 +18,7 @@ from pathlib import Path
 import platform
 from typing import Any
 
+import datasets
 import etils.epath as epath
 import flax.nnx as nnx
 from flax.training import common_utils
@@ -306,10 +302,6 @@ class CustomDataConfig(_config.DataConfigFactory):
     # Action configuration
     action_key: str = "action"  # Dataset action key
     state_key: str = "observation/state"  # Dataset state key
-    prompt_key: str = "prompt"  # Dataset prompt key
-
-    # Training prompt
-    default_prompt: str | None = None
 
     def create(self, assets_dirs: Path, model_config: _config._model.BaseModelConfig) -> _config.DataConfig:
         # Create image mappings - map dataset keys to standard observation format
@@ -323,7 +315,7 @@ class CustomDataConfig(_config.DataConfigFactory):
             **image_mapping,
             self.state_key: "state",
             self.action_key: "actions",
-            self.prompt_key: "prompt",
+            "prompt": "prompt",
         }
 
         # Create repack transform using the transforms module from config
@@ -334,7 +326,7 @@ class CustomDataConfig(_config.DataConfigFactory):
         # Use basic identity transforms for data and model processing
         # User can extend this by creating custom transform classes if needed
         data_transforms = transforms.Group(inputs=[], outputs=[])
-        model_transforms = _config.ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
+        model_transforms = _config.ModelTransformFactory()(model_config)
 
         return dataclasses.replace(
             self.create_base_config(assets_dirs, model_config),
@@ -348,7 +340,6 @@ class CustomDataConfig(_config.DataConfigFactory):
 def create_dynamic_config(
     repo_id: str,
     exp_name: str,
-    prompt: str,
     image_keys: list[str],
     action_key: str = "action",
     state_key: str = "observation/state",
@@ -378,7 +369,6 @@ def create_dynamic_config(
         image_keys=image_keys,
         action_key=action_key,
         state_key=state_key,
-        default_prompt=prompt,
     )
 
     return _config.TrainConfig(
@@ -390,9 +380,8 @@ def create_dynamic_config(
         batch_size=batch_size,
         num_train_steps=num_train_steps,
         checkpoint_base_dir=checkpoint_base_dir,
-        # LoRA specific settings
         freeze_filter=model_config.get_freeze_filter(),
-        ema_decay=None,  # Turn off EMA for LoRA
+        ema_decay=None,
     )
 
 
@@ -409,28 +398,38 @@ def train_with_config(config_name: str):
 @app.command()
 def train_custom(
     repo_id: str = typer.Option(..., help="HuggingFace dataset repository ID"),
-    exp_name: str = typer.Option(..., help="Experiment name"),
-    prompt: str = typer.Option(..., help="Default prompt for the model"),
-    image_keys: str = typer.Option(
-        ...,
-        help="Comma-separated image keys from dataset (e.g. 'observation/images.main.left,observation/images.secondary_0')",
-    ),
-    action_key: str = typer.Option("action", help="Action key from dataset"),
-    state_key: str = typer.Option("observation/state", help="State key from dataset"),
     action_dim: int = typer.Option(7, help="Action dimension"),
     action_horizon: int = typer.Option(10, help="Action horizon"),
     batch_size: int = typer.Option(64, help="Batch size"),
     num_train_steps: int = typer.Option(30000, help="Number of training steps"),
-    checkpoint_base_dir: str = typer.Option("./checkpoints", help="Base directory for checkpoints"),
+    image_keys: str = typer.Option("", help="Comma-separated list of image keys in the dataset"),
+    action_key: str = typer.Option("action", help="Action key in the dataset"),
+    state_key: str = typer.Option("observation/state", help="State key in the dataset"),
 ):
     """Train Pi0.5 with LoRA using custom arguments."""
 
     image_keys_list = [key.strip() for key in image_keys.split(",")]
 
+    # Download a sample of the dataset to inspect keys
+    dataset = datasets.load_dataset(repo_id, split="train", streaming=True)
+    sample = next(iter(dataset))
+
+    logging.debug(f"Found the following dataset keys: {list(sample['features'])}")
+    image_keys_list = image_keys_list if image_keys_list else [k for k in sample if "image" in k]
+    if not image_keys_list:
+        raise ValueError("No image keys found in the dataset. Please specify the image keys flag.")
+    action_key = action_key if action_key else next(k for k in sample if "action" in k)
+    if action_key not in sample:
+        raise ValueError(f"Action key '{action_key}' not found in the dataset. Please specify the action key flag.")
+    state_key = state_key if state_key else next(k for k in sample if "state" in k)
+    if state_key not in sample:
+        raise ValueError(f"State key '{state_key}' not found in the dataset. Please specify the state key flag.")
+
+    random_suffix = f"_{np.random.randint(0, 10000):04d}"
+
     config = create_dynamic_config(
         repo_id=repo_id,
-        exp_name=exp_name,
-        prompt=prompt,
+        exp_name=repo_id.replace("/", "_") + random_suffix,
         image_keys=image_keys_list,
         action_key=action_key,
         state_key=state_key,
@@ -438,7 +437,7 @@ def train_custom(
         action_horizon=action_horizon,
         batch_size=batch_size,
         num_train_steps=num_train_steps,
-        checkpoint_base_dir=checkpoint_base_dir,
+        checkpoint_base_dir=f"./checkpoints/{repo_id}",
     )
 
     main(config)
