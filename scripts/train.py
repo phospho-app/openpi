@@ -14,11 +14,9 @@ uv run scripts/train.py train-with-config pi0_libero
 import dataclasses
 import functools
 import logging
-from pathlib import Path
 import platform
 from typing import Any
 
-import datasets
 import etils.epath as epath
 import flax.nnx as nnx
 from flax.training import common_utils
@@ -42,6 +40,8 @@ import openpi.training.optimizer as _optimizer
 import openpi.training.sharding as sharding
 import openpi.training.utils as training_utils
 import openpi.training.weight_loaders as _weight_loaders
+
+from . import config_utils
 
 
 def init_logging():
@@ -292,99 +292,6 @@ def main(config: _config.TrainConfig):
     checkpoint_manager.wait_until_finished()
 
 
-@dataclasses.dataclass(frozen=True)
-class CustomDataConfig(_config.DataConfigFactory):
-    """Flexible data config for custom robot setups."""
-
-    # Camera configuration
-    image_keys: list[str] = dataclasses.field(default_factory=list)  # Dataset image keys
-
-    # Action configuration
-    action_key: str = "action"  # Dataset action key
-    state_key: str = "observation/state"  # Dataset state key
-
-    def create(self, assets_dirs: Path, model_config: _config._model.BaseModelConfig) -> _config.DataConfig:
-        # Create image mappings - map dataset keys to standard observation format
-        image_mapping = {}
-        for i, dataset_key in enumerate(self.image_keys):
-            obs_key = "main" if i == 0 else f"secondary_{i - 1}"
-            image_mapping[dataset_key] = obs_key
-
-        # Create repack mapping to standardize dataset format
-        repack_mapping = {
-            **image_mapping,
-            self.state_key: "state",
-            self.action_key: "actions",
-            "prompt": "prompt",
-        }
-
-        # Create repack transform using the transforms module from config
-        import openpi.transforms as transforms
-
-        repack_transforms = transforms.Group(inputs=[transforms.RepackTransform(repack_mapping)])
-
-        # Use basic identity transforms for data and model processing
-        # User can extend this by creating custom transform classes if needed
-        data_transforms = transforms.Group(inputs=[], outputs=[])
-        model_transforms = _config.ModelTransformFactory()(model_config)
-
-        return dataclasses.replace(
-            self.create_base_config(assets_dirs, model_config),
-            repack_transforms=repack_transforms,
-            data_transforms=data_transforms,
-            model_transforms=model_transforms,
-            action_sequence_keys=(self.action_key,),
-        )
-
-
-def create_dynamic_config(
-    repo_id: str,
-    exp_name: str,
-    image_keys: list[str],
-    action_key: str = "action",
-    state_key: str = "observation/state",
-    action_dim: int = 6,
-    action_horizon: int = 10,
-    batch_size: int = 64,
-    num_train_steps: int = 30000,
-    checkpoint_base_dir: str = "./checkpoints",
-) -> _config.TrainConfig:
-    """Create a dynamic training config for Pi0.5 LoRA fine-tuning."""
-
-    # Use Pi0.5 with LoRA configuration
-    model_config = _config.pi0_config.Pi0Config(
-        pi05=True,
-        action_dim=action_dim,
-        action_horizon=action_horizon,
-        paligemma_variant="gemma_2b_lora",  # Use LoRA variant
-        action_expert_variant="gemma_300m_lora",  # Use LoRA variant
-    )
-
-    # Pi0.5 base model checkpoint
-    weight_loader_path = "gs://openpi-assets/checkpoints/pi05_base/params"
-
-    # Create custom data config
-    data_factory = CustomDataConfig(
-        repo_id=repo_id,
-        image_keys=image_keys,
-        action_key=action_key,
-        state_key=state_key,
-    )
-
-    return _config.TrainConfig(
-        name="custom_pi05_lora",
-        exp_name=exp_name,
-        model=model_config,
-        data=data_factory,
-        weight_loader=_config.weight_loaders.CheckpointWeightLoader(weight_loader_path),
-        batch_size=batch_size,
-        num_train_steps=num_train_steps,
-        checkpoint_base_dir=checkpoint_base_dir,
-        freeze_filter=model_config.get_freeze_filter(),
-        ema_decay=None,
-    )
-
-
 app = typer.Typer()
 
 
@@ -408,36 +315,15 @@ def train_custom(
 ):
     """Train Pi0.5 with LoRA using custom arguments."""
 
-    image_keys_list = [key.strip() for key in image_keys.split(",")]
-
-    # Download a sample of the dataset to inspect keys
-    dataset = datasets.load_dataset(repo_id, split="train", streaming=True)
-    sample = next(iter(dataset))
-
-    logging.debug(f"Found the following dataset keys: {list(sample['features'])}")
-    image_keys_list = image_keys_list if image_keys_list else [k for k in sample if "image" in k]
-    if not image_keys_list:
-        raise ValueError("No image keys found in the dataset. Please specify the image keys flag.")
-    action_key = action_key if action_key else next(k for k in sample if "action" in k)
-    if action_key not in sample:
-        raise ValueError(f"Action key '{action_key}' not found in the dataset. Please specify the action key flag.")
-    state_key = state_key if state_key else next(k for k in sample if "state" in k)
-    if state_key not in sample:
-        raise ValueError(f"State key '{state_key}' not found in the dataset. Please specify the state key flag.")
-
-    random_suffix = f"_{np.random.randint(0, 10000):04d}"
-
-    config = create_dynamic_config(
+    config = config_utils.prepare_custom_config_from_args(
         repo_id=repo_id,
-        exp_name=repo_id.replace("/", "_") + random_suffix,
-        image_keys=image_keys_list,
-        action_key=action_key,
-        state_key=state_key,
         action_dim=action_dim,
         action_horizon=action_horizon,
         batch_size=batch_size,
         num_train_steps=num_train_steps,
-        checkpoint_base_dir=f"./checkpoints/{repo_id}",
+        image_keys=image_keys,
+        action_key=action_key,
+        state_key=state_key,
     )
 
     main(config)
