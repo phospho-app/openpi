@@ -1,9 +1,9 @@
 import logging
 import time
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
-import websockets.sync.client
 from typing_extensions import override
+import websockets.sync.client
 
 from openpi_client import base_policy as _base_policy
 from openpi_client import msgpack_numpy
@@ -15,9 +15,12 @@ class WebsocketClientPolicy(_base_policy.BasePolicy):
     See WebsocketPolicyServer for a corresponding server implementation.
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8000) -> None:
-        self._uri = f"ws://{host}:{port}"
+    def __init__(self, host: str = "0.0.0.0", port: Optional[int] = None, api_key: Optional[str] = None) -> None:
+        self._uri = f"ws://{host}"
+        if port is not None:
+            self._uri += f":{port}"
         self._packer = msgpack_numpy.Packer()
+        self._api_key = api_key
         self._ws, self._server_metadata = self._wait_for_server()
 
     def get_server_metadata(self) -> Dict:
@@ -27,7 +30,10 @@ class WebsocketClientPolicy(_base_policy.BasePolicy):
         logging.info(f"Waiting for server at {self._uri}...")
         while True:
             try:
-                conn = websockets.sync.client.connect(self._uri, compression=None, max_size=None)
+                headers = {"Authorization": f"Api-Key {self._api_key}"} if self._api_key else None
+                conn = websockets.sync.client.connect(
+                    self._uri, compression=None, max_size=None, additional_headers=headers
+                )
                 metadata = msgpack_numpy.unpackb(conn.recv())
                 return conn, metadata
             except ConnectionRefusedError:
