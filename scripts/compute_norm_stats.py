@@ -1,27 +1,13 @@
-"""Compute normalization statistics for a dataset.
-
-USAGE:
-uv run scripts/compute_norm_stats.py compute-norm-custom \
-    --repo-id "your-username/your-dataset" \
-    --action-dim 12 \
-    --action-horizon 10 \
-    --batch-size 64
-
-Or with predefined config:
-uv run scripts/compute_norm_stats.py compute-norm-with-config pi0_libero
-"""
-
-import numpy as np
 import tqdm
-from openpi.training.config_utils import apply_override
 import typer
+import numpy as np
 
 import openpi.models.model as _model
-import openpi.shared.normalize as normalize
-from openpi.training import config_utils
-import openpi.training.config as _config
-import openpi.training.data_loader as _data_loader
 import openpi.transforms as transforms
+import openpi.shared.normalize as normalize
+import openpi.training.config as _config
+from openpi.training.config_utils import apply_override
+import openpi.training.data_loader as _data_loader
 
 
 class RemoveStrings(transforms.DataTransformFn):

@@ -1,16 +1,3 @@
-"""
-USAGE:
-uv run scripts/train.py train-custom \
-    --repo-id "your-username/your-dataset" \
-    --action-dim 12 \
-    --action-horizon 10 \
-    --batch-size 64 \
-    --num-train-steps 30000
-
-Or with predefined config:
-uv run scripts/train.py train-with-config pi0_libero
-"""
-
 import dataclasses
 import functools
 import logging
@@ -289,6 +276,10 @@ def main(config: _config.TrainConfig):
             _checkpoints.save_state(checkpoint_manager, train_state, data_loader, step)
 
     logging.info("Waiting for checkpoint manager to finish")
+    
+    # Dump the config as a json file in the checkpoint directory.
+    (config.checkpoint_dir / "config.json").write_text(config_utils.config_to_json(config))
+
     checkpoint_manager.wait_until_finished()
 
 

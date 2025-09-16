@@ -1046,7 +1046,7 @@ _CONFIGS = [
         model=pi0_config.Pi0Config(pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"),
         data=LeRobotSO100DataConfig(
             image_keys=["observation.images.main"],
-            repo_id="",
+            repo_id="LegrandFrederic/pick_and_place",
             base_config=DataConfig(
                 prompt_from_task=True,
                 action_sequence_keys=("action",),

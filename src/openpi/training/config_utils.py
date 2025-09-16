@@ -5,7 +5,6 @@ import dataclasses
 
 import openpi.training.config as _config
 
-
 def _auto_cast(value: str):
     """Try to interpret strings as bool, int, float, list, or leave as str."""
     # Handle boolean values
