@@ -152,6 +152,7 @@ def compute_norm_custom(
         image_keys=image_keys,
         action_key=action_key,
         state_key=state_key,
+        wandb_enabled=False,  # Not used for norm stats
     )
 
     compute_with_config_object(config, max_frames)

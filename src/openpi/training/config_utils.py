@@ -59,26 +59,31 @@ def inspect_dataset_keys(
 ) -> tuple[str, str, list[str]]:
     """Inspect dataset to automatically detect keys if not provided."""
     # Download a sample of the dataset to inspect keys
-    dataset = datasets.load_dataset(repo_id, split="train", streaming=True)
+    dataset = datasets.load_dataset(repo_id, split="train", streaming=True, data_files="meta/info.json")
     sample = next(iter(dataset))
+    features = sample.get("features", None)
+    if not features:
+        raise ValueError("Dataset meta/info.json does not contain 'features' key.")
 
-    logging.debug(f"Found the following dataset keys: {list(sample['features'])}")
+    logging.debug(f"Found the following dataset keys: {list(features)}")
 
     # Auto-detect image keys if not provided
-    detected_image_keys = image_keys if image_keys else [k for k in sample if "image" in k]
+    detected_image_keys = image_keys if image_keys else [k for k in features if "image" in k]
     if not detected_image_keys:
         raise ValueError("No image keys found in the dataset. Please specify the image keys flag.")
 
     # Auto-detect action key if not found
-    detected_action_key = action_key if action_key in sample else next((k for k in sample if "action" in k), action_key)
-    if detected_action_key not in sample:
+    detected_action_key = (
+        action_key if action_key in features else next((k for k in features if "action" in k), action_key)
+    )
+    if detected_action_key not in features:
         raise ValueError(
             f"Action key '{detected_action_key}' not found in the dataset. Please specify the action key flag."
         )
 
     # Auto-detect state key if not found
-    detected_state_key = state_key if state_key in sample else next((k for k in sample if "state" in k), state_key)
-    if detected_state_key not in sample:
+    detected_state_key = state_key if state_key in features else next((k for k in features if "state" in k), state_key)
+    if detected_state_key not in features:
         raise ValueError(
             f"State key '{detected_state_key}' not found in the dataset. Please specify the state key flag."
         )
