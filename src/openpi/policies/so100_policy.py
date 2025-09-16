@@ -11,7 +11,7 @@ def make_so100_example() -> dict:
     """Creates a random input example for the Libero policy."""
     return {
         "observation/state": np.random.rand(12),
-        "observation/images.main.left": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
+        "observation/images.main": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
         "observation/images.secondary_0": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
         "observation/images.secondary_1": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
         "prompt": "do something",
@@ -33,10 +33,13 @@ class S0100Inputs(transforms.DataTransformFn):
     action_dim: int
 
     # Determines which model will be used.
-    model_type: _model.ModelType = _model.ModelType.PI0
+    model_type: _model.ModelType = _model.ModelType.PI05
+
+    image_keys: list[str] = dataclasses.field(
+        default_factory=lambda: ["observation.images.main"]
+    )
 
     def __call__(self, data: dict) -> dict:
-        mask_padding = self.model_type == _model.ModelType.PI0  # We don't mask for pi0-FAST.
 
         # Get the state. We are padding from 8 to the model action dim.
         # For pi0-FAST, we don't pad the state (action_dim = 7, which is < 8, so pad is skipped).
@@ -45,15 +48,17 @@ class S0100Inputs(transforms.DataTransformFn):
 
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
         # stores as float32 (C,H,W), gets skipped for policy inference
-        base_image = _parse_image(data["observation/images.main.left"])
-        wrist_image_right = _parse_image(data["observation/images.secondary_0"])
-        wrist_image_left = _parse_image(data["observation/images.secondary_1"])
+        images = {}
+        image_names = ["base_0_rgb", "left_wrist_0_rgb", "right_wrist_0_rgb"]
+        for image in self.image_keys[:3]:  # Only take up to 3 images
+            format_key = image.replace("observation.", "observation/")
+            if format_key not in data:
+                raise ValueError(f"Expected image key {format_key} in data but not found. Available keys: {list(data.keys())}")
+            images[image_names.pop(0)] = _parse_image(data[format_key])
+        if len(images) < 3:
+            for _ in range(3 - len(images)):
+                images[image_names.pop(0)] = np.zeros_like(images["base_0_rgb"])
 
-        images = {
-            "base_0_rgb": base_image,
-            "left_wrist_0_rgb": wrist_image_right,
-            "right_wrist_0_rgb": wrist_image_left,
-        }
         image_masks = {
             "base_0_rgb": np.True_,
             "left_wrist_0_rgb": np.True_,
@@ -79,7 +84,8 @@ class S0100Inputs(transforms.DataTransformFn):
 
 @dataclasses.dataclass(frozen=True)
 class S0100Outputs(transforms.DataTransformFn):
+    action_dim: int
     def __call__(self, data: dict) -> dict:
         # Make sure to only return the appropriate number of actions here
         # 6 for 1 robot, 12 for 2
-        return {"actions": np.asarray(data["actions"][:, :12])}
+        return {"actions": np.asarray(data["actions"][:, :self.action_dim])}

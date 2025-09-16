@@ -456,6 +456,11 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
 
 @dataclasses.dataclass(frozen=True)
 class LeRobotSO100DataConfig(DataConfigFactory):
+
+    image_keys: list[str] = dataclasses.field(
+        default_factory=lambda: ["observation.images.main"]
+    )
+
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         # Make inputs look like they come from the Libero environment
@@ -463,13 +468,10 @@ class LeRobotSO100DataConfig(DataConfigFactory):
             inputs=[
                 _transforms.RepackTransform(
                     {
-                        # We only take the left cam of the stereo cam
-                        "observation/images.main.left": "observation.images.main.left",
-                        "observation/images.secondary_0": "observation.images.secondary_0",
-                        "observation/images.secondary_1": "observation.images.secondary_1",
                         "observation/state": "observation.state",
                         "actions": "action",
                         "prompt": "prompt",
+                        **{key.replace("observation.images.", "observation/images."): key for key in self.image_keys}
                     }
                 )
             ]
@@ -478,8 +480,8 @@ class LeRobotSO100DataConfig(DataConfigFactory):
         # Prepare data for policy training
         # Convert images to uint8 numpy arrays, add masks
         data_transforms = _transforms.Group(
-            inputs=[so100_policy.S0100Inputs(action_dim=model_config.action_dim, model_type=model_config.model_type)],
-            outputs=[so100_policy.S0100Outputs()],
+            inputs=[so100_policy.S0100Inputs(action_dim=model_config.action_dim, model_type=model_config.model_type, image_keys=self.image_keys)],
+            outputs=[so100_policy.S0100Outputs(action_dim=model_config.action_dim)],
         )
         # Use delta actions (not for gripper)
         delta_action_mask = _transforms.make_bool_mask(6, -1)
@@ -492,7 +494,7 @@ class LeRobotSO100DataConfig(DataConfigFactory):
         model_transforms = ModelTransformFactory()(model_config)
 
         return dataclasses.replace(
-            self.create_base_config(assets_dirs),
+            self.create_base_config(assets_dirs, model_config=model_config),
             repack_transforms=repack_transform,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
@@ -1035,6 +1037,25 @@ _CONFIGS = [
         num_train_steps=30_000,
         freeze_filter=pi0_fast.Pi0FASTConfig(
             action_dim=6, action_horizon=10, max_token_len=180, paligemma_variant="gemma_2b_lora"
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
+    TrainConfig(
+        name="pi0.5_LoRA_finetune_so100",
+        exp_name="pi05_so100_lora_finetune",
+        model=pi0_config.Pi0Config(pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"),
+        data=LeRobotSO100DataConfig(
+            image_keys=["observation.images.main"],
+            repo_id="",
+            base_config=DataConfig(
+                prompt_from_task=True,
+                action_sequence_keys=("action",),
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base"),
+        num_train_steps=30_000,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"
         ).get_freeze_filter(),
         ema_decay=None,
     ),

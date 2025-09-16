@@ -30,6 +30,7 @@ import tqdm_loggable.auto as tqdm
 import typer
 import wandb
 
+from openpi.training.config_utils import apply_override
 import openpi.models.model as _model
 import openpi.shared.array_typing as at
 import openpi.shared.nnx_utils as nnx_utils
@@ -227,7 +228,7 @@ def main(config: _config.TrainConfig):
     checkpoint_manager, resuming = _checkpoints.initialize_checkpoint_dir(
         config.checkpoint_dir,
         keep_period=config.keep_period,
-        overwrite=config.overwrite,
+        overwrite=True,
         resume=config.resume,
     )
     init_wandb(config, resuming=resuming, enabled=config.wandb_enabled)
@@ -294,38 +295,16 @@ def main(config: _config.TrainConfig):
 app = typer.Typer()
 
 
-@app.command()
-def train_with_config(config_name: str):
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def train_with_config(ctx: typer.Context, config_name: str):
     """Train with a predefined configuration."""
+    
     config = _config.get_config(config_name)
-    main(config)
 
-
-@app.command()
-def train_custom(
-    repo_id: str = typer.Option(..., help="HuggingFace dataset repository ID"),
-    action_dim: int = typer.Option(7, help="Action dimension"),
-    action_horizon: int = typer.Option(10, help="Action horizon"),
-    batch_size: int = typer.Option(64, help="Batch size"),
-    num_train_steps: int = typer.Option(30000, help="Number of training steps"),
-    image_keys: str = typer.Option("", help="Comma-separated list of image keys in the dataset"),
-    action_key: str = typer.Option("action", help="Action key in the dataset"),
-    state_key: str = typer.Option("observation/state", help="State key in the dataset"),
-    wandb_enabled: bool = typer.Option(True, help="Whether to enable Weights & Biases logging"),
-):
-    """Train Pi0.5 with LoRA using custom arguments."""
-
-    config = config_utils.prepare_custom_config_from_args(
-        repo_id=repo_id,
-        action_dim=action_dim,
-        action_horizon=action_horizon,
-        batch_size=batch_size,
-        num_train_steps=num_train_steps,
-        image_keys=image_keys,
-        action_key=action_key,
-        state_key=state_key,
-        wandb_enabled=wandb_enabled,
-    )
+    for arg in ctx.args:
+        if arg.startswith("--") and "=" in arg:
+            key, value = arg[2:].split("=")
+            config = apply_override(config, key, value)
 
     main(config)
 
