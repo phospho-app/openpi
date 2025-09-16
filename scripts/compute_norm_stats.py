@@ -17,11 +17,10 @@ import typer
 
 import openpi.models.model as _model
 import openpi.shared.normalize as normalize
+from openpi.training import config_utils
 import openpi.training.config as _config
 import openpi.training.data_loader as _data_loader
 import openpi.transforms as transforms
-
-from . import config_utils
 
 
 class RemoveStrings(transforms.DataTransformFn):
