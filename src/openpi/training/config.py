@@ -1001,7 +1001,6 @@ _CONFIGS = [
         data=LeRobotSO100DataConfig(
             repo_id="LegrandFrederic/dual-setup",
             base_config=DataConfig(
-                local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
                 action_sequence_keys=("action",),
             ),
@@ -1015,7 +1014,6 @@ _CONFIGS = [
         data=LeRobotSO100DataConfig(
             repo_id="LegrandFrederic/dual-setup",
             base_config=DataConfig(
-                local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
                 action_sequence_keys=("action",),
             ),
@@ -1029,7 +1027,6 @@ _CONFIGS = [
         data=LeRobotSO100DataConfig(
             repo_id="PLB/Orange-brick-in-black-box",
             base_config=DataConfig(
-                local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
                 action_sequence_keys=("action",),
             ),
