@@ -278,7 +278,7 @@ def main(config: _config.TrainConfig):
     logging.info("Waiting for checkpoint manager to finish")
     
     # Dump the config as a json file in the checkpoint directory.
-    (config.checkpoint_dir / "config.json").write_text(config_utils.config_to_json(config))
+    config.save_config(config.checkpoint_dir / "config.json")
 
     checkpoint_manager.wait_until_finished()
 

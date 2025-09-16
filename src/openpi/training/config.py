@@ -4,7 +4,9 @@ import abc
 from collections.abc import Sequence
 import dataclasses
 import difflib
+import json
 import logging
+import pathlib
 import pathlib
 from typing import Any, Literal, Protocol, TypeAlias
 
@@ -593,6 +595,15 @@ class TrainConfig:
     def __post_init__(self) -> None:
         if self.resume and self.overwrite:
             raise ValueError("Cannot resume and overwrite at the same time.")
+        
+    def load_config(self, path: pathlib.Path) -> "TrainConfig":
+        with open(path, "r") as f:
+            return TrainConfig(**json.load(f))
+        
+    def save_config(self, path: pathlib.Path) -> None:
+        with open(path, "w") as f:
+            json.dump(dataclasses.asdict(self), f, indent=2)
+
 
 
 # Use `get_config` if you need to get a config by name in your code.
