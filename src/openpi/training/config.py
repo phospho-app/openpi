@@ -459,10 +459,7 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
 
 @dataclasses.dataclass(frozen=True)
 class LeRobotSO100DataConfig(DataConfigFactory):
-
-    image_keys: list[str] = dataclasses.field(
-        default_factory=lambda: ["observation.images.main"]
-    )
+    image_keys: list[str] = dataclasses.field(default_factory=lambda: ["observation.images.main"])
 
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
@@ -474,7 +471,7 @@ class LeRobotSO100DataConfig(DataConfigFactory):
                         "observation/state": "observation.state",
                         "actions": "action",
                         "prompt": "prompt",
-                        **{key.replace("observation.images.", "observation/images."): key for key in self.image_keys}
+                        **{key.replace("observation.images.", "observation/images."): key for key in self.image_keys},
                     }
                 )
             ]
@@ -483,7 +480,11 @@ class LeRobotSO100DataConfig(DataConfigFactory):
         # Prepare data for policy training
         # Convert images to uint8 numpy arrays, add masks
         data_transforms = _transforms.Group(
-            inputs=[so100_policy.S0100Inputs(action_dim=model_config.action_dim, model_type=model_config.model_type, image_keys=self.image_keys)],
+            inputs=[
+                so100_policy.S0100Inputs(
+                    action_dim=model_config.action_dim, model_type=model_config.model_type, image_keys=self.image_keys
+                )
+            ],
             outputs=[so100_policy.S0100Outputs(action_dim=model_config.action_dim)],
         )
         # Use delta actions (not for gripper)
@@ -596,15 +597,16 @@ class TrainConfig:
     def __post_init__(self) -> None:
         if self.resume and self.overwrite:
             raise ValueError("Cannot resume and overwrite at the same time.")
-        
+
     def save_config(self, path: pathlib.Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path.with_suffix('.pkl'), 'wb') as f:
+        with open(path.with_suffix(".pkl"), "wb") as f:
             pickle.dump(self, f)
 
     def load_config(self, path: pathlib.Path) -> "TrainConfig":
-        with open(path.with_suffix('.pkl'), 'rb') as f:
+        with open(path.with_suffix(".pkl"), "rb") as f:
             return pickle.load(f)
+
 
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
@@ -1054,7 +1056,9 @@ _CONFIGS = [
     TrainConfig(
         name="pi0.5_LoRA_finetune_so100",
         exp_name="pi05_so100_lora_finetune",
-        model=pi0_config.Pi0Config(pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"),
+        model=pi0_config.Pi0Config(
+            pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"
+        ),
         data=LeRobotSO100DataConfig(
             image_keys=["observation.images.main"],
             repo_id="LegrandFrederic/pick_and_place",
@@ -1063,7 +1067,7 @@ _CONFIGS = [
                 action_sequence_keys=("action",),
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=30_000,
         freeze_filter=pi0_config.Pi0Config(
             pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"
