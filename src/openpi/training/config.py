@@ -4,8 +4,7 @@ import abc
 from collections.abc import Sequence
 import dataclasses
 import difflib
-import json
-import pickle
+import dill
 import logging
 import pathlib
 import pathlib
@@ -601,11 +600,11 @@ class TrainConfig:
     def save_config(self, path: pathlib.Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path.with_suffix(".pkl"), "wb") as f:
-            pickle.dump(self, f)
+            dill.dump(self, f)
 
     def load_config(self, path: pathlib.Path) -> "TrainConfig":
         with open(path.with_suffix(".pkl"), "rb") as f:
-            return pickle.load(f)
+            return dill.load(f)
 
 
 # Use `get_config` if you need to get a config by name in your code.

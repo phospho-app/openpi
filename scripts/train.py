@@ -276,9 +276,9 @@ def main(config: _config.TrainConfig):
             _checkpoints.save_state(checkpoint_manager, train_state, data_loader, step)
 
     logging.info("Waiting for checkpoint manager to finish")
-    
-    # Dump the config as a json file in the checkpoint directory.
-    config.save_config(config.checkpoint_dir / "config.json")
+
+    # Dump the config as a pickle file in the checkpoint directory.
+    config.save_config(config.checkpoint_dir / "config.pkl")
 
     checkpoint_manager.wait_until_finished()
 
@@ -289,7 +289,7 @@ app = typer.Typer()
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def train_with_config(ctx: typer.Context, config_name: str):
     """Train with a predefined configuration."""
-    
+
     config = _config.get_config(config_name)
 
     for arg in ctx.args:
