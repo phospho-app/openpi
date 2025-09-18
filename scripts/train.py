@@ -277,8 +277,8 @@ def main(config: _config.TrainConfig):
 
     logging.info("Waiting for checkpoint manager to finish")
 
-    # Dump the config as a pickle file in the checkpoint directory.
-    config.save_config(config.checkpoint_dir / "config.pkl")
+    # Dump the config as a JSON file in the checkpoint directory.
+    config.save_config(config.checkpoint_dir / "config.json")
 
     checkpoint_manager.wait_until_finished()
 
