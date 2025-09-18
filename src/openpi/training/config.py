@@ -4,7 +4,7 @@ import abc
 from collections.abc import Sequence
 import dataclasses
 import difflib
-import dill
+import json
 import logging
 import pathlib
 import pathlib
@@ -599,12 +599,17 @@ class TrainConfig:
 
     def save_config(self, path: pathlib.Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path.with_suffix(".pkl"), "wb") as f:
-            dill.dump(self, f)
+        config_dict = dataclasses.asdict(self)
 
-    def load_config(self, path: pathlib.Path) -> "TrainConfig":
-        with open(path.with_suffix(".pkl"), "rb") as f:
-            return dill.load(f)
+        def make_serializable(obj):
+            if hasattr(obj, "__dict__"):
+                return obj.__class__.__name__  # Just store class name
+            if callable(obj):
+                return str(obj)
+            return obj
+
+        with open(path.with_suffix(".json"), "w") as f:
+            json.dump(config_dict, f, indent=2, default=make_serializable)
 
 
 # Use `get_config` if you need to get a config by name in your code.
