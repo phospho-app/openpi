@@ -4,6 +4,7 @@ import logging
 import time
 import traceback
 
+import numpy as np
 from openpi_client import base_policy as _base_policy
 from openpi_client import msgpack_numpy
 import websockets.asyncio.server as _server
@@ -57,6 +58,9 @@ class WebsocketPolicyServer:
                 start_time = time.monotonic()
                 obs = msgpack_numpy.unpackb(await websocket.recv())
 
+                # Converts data from msgpack-numpy format to numpy arrays
+                obs = self.reconstruct_arrays(obs)
+
                 infer_time = time.monotonic()
                 action = self._policy.infer(obs)
                 infer_time = time.monotonic() - infer_time
@@ -81,6 +85,23 @@ class WebsocketPolicyServer:
                     reason="Internal server error. Traceback included in previous frame.",
                 )
                 raise
+
+    def reconstruct_arrays(self, data):
+        if isinstance(data, dict):
+            result = {}
+            for key, value in data.items():
+                if isinstance(value, dict) and b"data" in value and b"shape" in value:
+                    # This is a msgpack-numpy serialized array
+                    dtype = np.dtype(value[b"type"].decode())
+                    shape = value[b"shape"]
+                    array_data = np.frombuffer(value[b"data"], dtype=dtype)
+                    if shape:
+                        array_data = array_data.reshape(shape)
+                    result[key] = array_data
+                else:
+                    result[key] = self.reconstruct_arrays(value)  # Recursive for nested dicts
+            return result
+        return data
 
 
 def _health_check(connection: _server.ServerConnection, request: _server.Request) -> _server.Response | None:
