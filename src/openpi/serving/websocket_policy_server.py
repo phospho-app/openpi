@@ -4,7 +4,6 @@ import logging
 import time
 import traceback
 
-import numpy as np
 from openpi_client import base_policy as _base_policy
 from openpi_client import msgpack_numpy
 import websockets.asyncio.server as _server
@@ -56,10 +55,7 @@ class WebsocketPolicyServer:
         while True:
             try:
                 start_time = time.monotonic()
-                obs = msgpack_numpy.unpackb(
-                    await websocket.recv(),
-                    object_hook=msgpack_numpy.decode,
-                )
+                obs = msgpack_numpy.unpackb(await websocket.recv())
 
                 print(f"Received observation data: {obs}")
 
