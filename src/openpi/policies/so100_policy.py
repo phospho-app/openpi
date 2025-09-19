@@ -41,6 +41,13 @@ class S0100Inputs(transforms.DataTransformFn):
         # Get the state. We are padding from 8 to the model action dim.
         # For pi0-FAST, we don't pad the state (action_dim = 7, which is < 8, so pad is skipped).
         # For the SO100 the state is of size 6 so we pad
+
+        print("Data keys:", list(data.keys()))
+        print(
+            f"Observation state: {np.asarray(data['observation/state'])}, shape: {np.asarray(data['observation/state']).shape}"
+        )
+        print(f"Action dim: {self.action_dim}")
+
         state = transforms.pad_to_dim(np.asarray(data["observation/state"]), self.action_dim)
 
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
