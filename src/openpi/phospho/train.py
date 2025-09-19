@@ -2,6 +2,7 @@ import dataclasses
 import functools
 import logging
 import platform
+import time
 from typing import Any
 
 import etils.epath as epath
@@ -9,7 +10,6 @@ import flax.nnx as nnx
 from flax.training import common_utils
 import flax.traverse_util as traverse_util
 import jax
-import jax.experimental
 import jax.numpy as jnp
 import numpy as np
 import optax
@@ -22,6 +22,7 @@ import openpi.shared.array_typing as at
 import openpi.shared.nnx_utils as nnx_utils
 import openpi.training.checkpoints as _checkpoints
 import openpi.training.config as _config
+from openpi.training.config_utils import apply_override
 import openpi.training.data_loader as _data_loader
 import openpi.training.optimizer as _optimizer
 import openpi.training.sharding as sharding
@@ -192,7 +193,7 @@ def train_step(
     return new_state, info
 
 
-def main(config: _config.TrainConfig):
+def main(config: _config.TrainConfig, timeout: int | None = None):
     init_logging()
     logging.info(f"Running on: {platform.node()}")
 
@@ -249,6 +250,11 @@ def main(config: _config.TrainConfig):
     )
 
     start_step = int(train_state.step)
+
+    # Initialize timeout tracking
+    start_time = time.time()
+    timeout_reached = False
+
     pbar = tqdm.tqdm(
         range(start_step, config.num_train_steps),
         initial=start_step,
@@ -258,9 +264,18 @@ def main(config: _config.TrainConfig):
 
     infos = []
     for step in pbar:
+        # Check timeout before each training step
+        if timeout is not None:
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= timeout:
+                logging.info(f"Training timeout reached after {elapsed_time:.2f} seconds at step {step}")
+                timeout_reached = True
+                break
+
         with sharding.set_mesh(mesh):
             train_state, info = ptrain_step(train_rng, train_state, batch)
         infos.append(info)
+
         if step % config.log_interval == 0:
             stacked_infos = common_utils.stack_forest(infos)
             reduced_info = jax.device_get(jax.tree.map(jnp.mean, stacked_infos))
@@ -268,10 +283,16 @@ def main(config: _config.TrainConfig):
             pbar.write(f"Step {step}: {info_str}")
             wandb.log(reduced_info, step=step)
             infos = []
+
         batch = next(data_iter)
 
         if (step % config.save_interval == 0 and step > start_step) or step == config.num_train_steps - 1:
             _checkpoints.save_state(checkpoint_manager, train_state, data_loader, step)
+
+    # Save final checkpoint if timeout was reached
+    if timeout_reached:
+        logging.info(f"Saving final checkpoint at step {step} due to timeout")
+        _checkpoints.save_state(checkpoint_manager, train_state, data_loader, step)
 
     logging.info("Waiting for checkpoint manager to finish")
 
@@ -280,18 +301,22 @@ def main(config: _config.TrainConfig):
 
     checkpoint_manager.wait_until_finished()
 
+    if timeout_reached:
+        logging.info(f"Training completed early due to timeout at step {step}")
+    else:
+        logging.info("Training completed successfully")
 
-app = typer.Typer()
 
-
-@app.command()
-def train_with_config(config_name: str):
+def train_with_config(config: _config.TrainConfig, training_args: dict[str, Any], timeout: int | None = None):
     """Train with a predefined configuration."""
 
-    config = _config.get_config(config_name)
+    for key, value in training_args.items():
+        config = apply_override(config, key, value)
 
-    main(config)
+    main(config, timeout=timeout)
 
 
-if __name__ == "__main__":
-    app()
+# This script is meant to be used as a module, like so
+# from openpi.training.config import get_config
+# from openpi.phospho.train import train_with_config
+# train_with_config(get_config("my_config"), training_args)

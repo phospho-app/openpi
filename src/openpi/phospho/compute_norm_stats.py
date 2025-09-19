@@ -108,16 +108,16 @@ def compute_with_config(config: _config.TrainConfig, max_frames: int | None = No
     normalize.save(output_path, norm_stats)
 
 
-app = typer.Typer()
-
-
-@app.command()
-def compute_norm_with_config(config_name: str, max_frames: int | None = None):
+def compute_norm_with_config(config: _config.TrainConfig, training_args: dict[str, Any], max_frames: int | None = None):
     """Compute normalization stats with a predefined configuration."""
 
-    config = _config.get_config(config_name)
+    for key, value in training_args.items():
+        config = apply_override(config, key, value)
+
     compute_with_config(config, max_frames)
 
 
-if __name__ == "__main__":
-    app()
+# This script is meant to be used as a module, like so
+# from openpi.training.config import get_config
+# from openpi.phospho.compute_norm_stats import compute_norm_with_config
+# compute_norm_with_config(get_config("my_config"), training_args)
