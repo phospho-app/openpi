@@ -15,7 +15,7 @@ import fsspec.generic
 import tqdm_loggable.auto as tqdm
 
 # Environment variable to control cache directory path, ~/.cache/openpi will be used by default.
-_OPENPI_DATA_HOME = "OPENPI_DATA_HOME"
+_OPENPI_DATA_HOME = "/data/openpi_cache"
 DEFAULT_CACHE_DIR = "~/.cache/openpi"
 
 logger = logging.getLogger(__name__)
