@@ -56,10 +56,12 @@ class WebsocketPolicyServer:
         while True:
             try:
                 start_time = time.monotonic()
-                obs = msgpack_numpy.unpackb(await websocket.recv())
+                obs = msgpack_numpy.unpackb(
+                    await websocket.recv(),
+                    object_hook=msgpack_numpy.decode,
+                )
 
-                # Converts data from msgpack-numpy format to numpy arrays
-                obs = self.reconstruct_arrays(obs)
+                print(f"Received observation data: {obs}")
 
                 infer_time = time.monotonic()
                 action = self._policy.infer(obs)
@@ -85,23 +87,6 @@ class WebsocketPolicyServer:
                     reason="Internal server error. Traceback included in previous frame.",
                 )
                 raise
-
-    def reconstruct_arrays(self, data):
-        if isinstance(data, dict):
-            result = {}
-            for key, value in data.items():
-                if isinstance(value, dict) and b"data" in value and b"shape" in value:
-                    # This is a msgpack-numpy serialized array
-                    dtype = np.dtype(value[b"type"].decode())
-                    shape = value[b"shape"]
-                    array_data = np.frombuffer(value[b"data"], dtype=dtype)
-                    if shape:
-                        array_data = array_data.reshape(shape)
-                    result[key] = array_data
-                else:
-                    result[key] = self.reconstruct_arrays(value)  # Recursive for nested dicts
-            return result
-        return data
 
 
 def _health_check(connection: _server.ServerConnection, request: _server.Request) -> _server.Response | None:
